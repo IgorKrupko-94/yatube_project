@@ -7,12 +7,12 @@ Thanks to this application, users will have the opportunity to create an account
 ### Launching a project in dev-mode
 - Install and activate the virtual environment
 - Install dependencies from the file requirements.txt
-'''
+```
 pip install -r requirements.txt
-'''
+```
 - In the folder with manage.py run the command:
-'''
+```
 python3 manage.py runserver
-'''
+```
 ### Autor
 Igor Krupko
