@@ -20,15 +20,15 @@ class Post(models.Model):
     pub_date = models.DateTimeField(auto_now_add=True)
     author = models.ForeignKey(User,
                                null=True,
-                               on_delete=models.SET_NULL,
+                               on_delete=models.CASCADE,
                                related_name='posts'
                                )
     group = models.ForeignKey(Group,
                               blank=True,
                               null=True,
-                              on_delete=models.CASCADE,
+                              on_delete=models.SET_NULL,
                               related_name='posts'
                               )
 
     def __str__(self):
-        return f'Пост добавлен {self.pub_date}'
+        return self.text[:20]
