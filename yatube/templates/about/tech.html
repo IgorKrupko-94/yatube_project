@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}<title>Технологии</title>{% endblock %}
+{% block content %}
+{% load user_filters %}
+{% comment %} Колонки с отступом сверху и снизу {% endcomment %}
+<div class="row">
+  <h1 style="margin: 30px">Технические детали</h1>
+  {% comment %}
+    Боковой блок со списком технологий
+    Займет всю ширину блока на мобильном
+    и 25% при размерах экрана ≥768px
+  {% endcomment %}
+  <aside class="col-12 col-md-3">
+    <ul class="list-group list-group-flush">
+      <li class="list-group-item">
+        Python
+      </li>
+      <li class="list-group-item">
+        Django
+      </li>
+      <li class="list-group-item">
+        HTML
+      </li>
+      <li class="list-group-item">
+        CSS
+      </li>
+    </ul>
+  </aside>
+  {% comment %}
+    Статья
+    Займет всю ширину блока на мобильном
+    и 75% при размерах экрана ≥768px
+  {% endcomment %}
+  <article class="col-12 col-md-9">
+    <p style="margin: 20px; font-size: 24px;">
+      Слева указаны главные программные инструменты,
+      использованные для создания этого сайта.<br>
+      Сложнее всего было разобраться с валидацией форм и декораторами.<br>
+      Но если учитывать что с Django я знаком всего 3 недели,
+      всё не так уж и плохо (субъективное)
+    </p>
+  </article>
+</div>
+{% endblock %}
