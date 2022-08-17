@@ -34,6 +34,13 @@
     <p>
       {{ post.text }}
     </p>
+    {% if user == post.author %}
+      <button type="submit" class="btn btn-primary">
+        <a class="btn btn-primary" href="{% url 'posts:post_edit' post.id %}">
+          Редактировать запись
+        </a>
+      </button>
+    {% endif %}
   </article>
 </div>
 {% endblock %}
