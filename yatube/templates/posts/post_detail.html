@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block title %}
-  Пост {{post.text|truncatechars:30 }}
+Пост {{post.text|truncatechars:30 }}
 {% endblock %}
 {% block content %}
 <div class="row">
@@ -21,7 +21,7 @@
         Автор: {{ post.author.get_full_name }}
       </li>
       <li class="list-group-item d-flex justify-content-between align-items-center">
-        Всего постов автора: <span>{{ post.author.count }}</span>
+        Всего постов автора: {{ author.posts.count }}
       </li>
       <li class="list-group-item">
         <a href="{% url 'posts:profile' post.author %}">
@@ -35,11 +35,11 @@
       {{ post.text }}
     </p>
     {% if user == post.author %}
-      <button type="submit" class="btn btn-primary">
-        <a class="btn btn-primary" href="{% url 'posts:post_edit' post.id %}">
-          Редактировать запись
-        </a>
-      </button>
+    <button type="submit" class="btn btn-primary">
+      <a class="btn btn-primary" href="{% url 'posts:post_edit' post.id %}">
+        Редактировать запись
+      </a>
+    </button>
     {% endif %}
   </article>
 </div>

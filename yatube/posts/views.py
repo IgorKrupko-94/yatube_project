@@ -5,7 +5,6 @@ from django.contrib.auth.decorators import login_required
 from .models import Post, Group, User
 from .forms import PostForm
 
-
 NUMBER_OF_POSTS: int = 10
 
 
@@ -50,8 +49,10 @@ def profile(request, username):
 
 def post_detail(request, post_id):
     post = get_object_or_404(Post, pk=post_id)
+    author = User.objects.get(username=post.author)
     context = {
         'post': post,
+        'author': author,
     }
     return render(request, 'posts/post_detail.html', context)
 
@@ -64,7 +65,7 @@ def post_create(request):
     new_post = form.save(commit=False)
     new_post.author = request.user
     new_post.save()
-    return redirect('posts:profile', request.user.username)
+    return redirect('posts:profile', username=new_post.author)
 
 
 @login_required
