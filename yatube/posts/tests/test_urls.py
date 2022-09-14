@@ -2,6 +2,7 @@ from http import HTTPStatus
 from datetime import datetime
 
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.test import TestCase, Client
 from django.urls import reverse
 
@@ -36,6 +37,9 @@ class PostURLTests(TestCase):
             group=cls.group,
         )
 
+    def setUp(self):
+        cache.clear()
+
     def test_guest_client_urls_status_code(self):
         """Проверяем status_code у неавторизованного пользователя."""
         urls_code = {
@@ -64,13 +68,16 @@ class PostURLTests(TestCase):
                 self.assertEqual(status_code, code, 'Ошибка в status_code')
 
     def test_guest_client_urls_redirect(self):
-        """Проверяем, что страницы /create/ и /posts/<post_id>/edit/
-        перенаправят анонимного пользователя на страницу /auth/login/."""
+        """Проверяем, что страницы /create/, /posts/<post_id>/edit/,
+        /posts/<post_id/comment перенаправят анонимного пользователя
+        на страницу /auth/login/."""
         url_names = {
             reverse('posts:post_create'):
                 '/auth/login/?next=/create/',
             reverse('posts:post_edit', kwargs={'post_id': self.post.id}):
-                f'/auth/login/?next=/posts/{self.post.id}/edit/'
+                f'/auth/login/?next=/posts/{self.post.id}/edit/',
+            reverse('posts:add_comment', kwargs={'post_id': self.post.id}):
+                f'/auth/login/?next=/posts/{self.post.id}/comment/'
         }
         for address, redirect in url_names.items():
             with self.subTest(address=address):

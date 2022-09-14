@@ -1,15 +1,23 @@
+import shutil
+import tempfile
+
 from django import forms
+from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.test import TestCase, Client
+from django.core.cache import cache
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase, Client, override_settings
 from django.urls import reverse
 
-from ..models import Group, Post
-from ..views import NUMBER_OF_POSTS
+from ..models import Group, Post, Follow
+from ..utils import NUMBER_OF_POSTS
 
 User = get_user_model()
+TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 COUNT_POSTS_TEST = 17
 
 
+@override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
 class PostPagesTests(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -27,11 +35,33 @@ class PostPagesTests(TestCase):
             slug='some_slug',
             description='Тестовое описание для группы без постов',
         )
+        small_gif = (
+            b'\x47\x49\x46\x38\x39\x61\x02\x00'
+            b'\x01\x00\x80\x00\x00\x00\x00\x00'
+            b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
+            b'\x00\x00\x00\x2C\x00\x00\x00\x00'
+            b'\x02\x00\x01\x00\x00\x02\x02\x0C'
+            b'\x0A\x00\x3B'
+        )
+        uploaded = SimpleUploadedFile(
+            name='small.gif',
+            content=small_gif,
+            content_type='image/gif'
+        )
         cls.post = Post.objects.create(
             text='Тестовый текст',
             author=cls.test_user,
             group=cls.group,
+            image=uploaded
         )
+
+    def setUp(self):
+        cache.clear()
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
     def test_posts_pages_uses_correct_template(self):
         """Проверяем, что URL-адрес использует корректный шаблон."""
@@ -73,6 +103,7 @@ class PostPagesTests(TestCase):
         form_fields = {
             'text': forms.fields.CharField,
             'group': forms.fields.ChoiceField,
+            'image': forms.fields.ImageField
         }
         for value, expected in form_fields.items():
             with self.subTest(value=value):
@@ -104,6 +135,10 @@ class PostPagesTests(TestCase):
             self.assertEqual(post.group,
                              self.post.group,
                              'Ошибка в группе поста'
+                             )
+            self.assertEqual(post.image,
+                             self.post.image,
+                             'Ошибка в картинке поста'
                              )
 
     def test_index_page_correct_context(self):
@@ -177,6 +212,29 @@ class PostPagesTests(TestCase):
                                   ' тестового поста на странице')
                                  )
 
+    def test_cache_index_page(self):
+        """Проверяем, что кеширование работает на главной странице."""
+        post = Post.objects.create(
+            text='Пост для проверки кеша',
+            author=self.test_user,
+            group=self.group
+        )
+        post_on_page = PostPagesTests.test_client.get(
+            reverse('posts:index')).content
+        post.delete()
+        post_in_cache = PostPagesTests.test_client.get(
+            reverse('posts:index')).content
+        self.assertEqual(post_on_page,
+                         post_in_cache,
+                         'Пост не сохраняется в кеше'
+                         )
+        cache.clear()
+        post_not_on_page = PostPagesTests.test_client.get(
+            reverse('posts:index')).content
+        self.assertNotEqual(post_on_page,
+                            post_not_on_page,
+                            'Пост остаётся на странице после очистки кеша')
+
 
 class PaginatorViewsTest(TestCase):
     @classmethod
@@ -197,8 +255,11 @@ class PaginatorViewsTest(TestCase):
                 group=cls.group
             )
 
+    def setUp(self):
+        cache.clear()
+
     def test_pages_of_count_posts(self):
-        """Проверяем работу пажинатора на страницах index.html,
+        """Проверяем работу пагинатора на страницах index.html,
         group_list.html и profile.html."""
         url_names = [
             reverse('posts:index'),
@@ -219,3 +280,101 @@ class PaginatorViewsTest(TestCase):
                     COUNT_POSTS_TEST - NUMBER_OF_POSTS,
                     'Количество постов на второй странице неверное'
                 )
+
+
+class FollowViewsTest(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.test_author = User.objects.create(username='test_author')
+        cls.test_follower = User.objects.create(username='test_follower')
+        cls.post = Post.objects.create(
+            text='Пост для подписки',
+            author=cls.test_author
+        )
+
+    def setUp(self):
+        cache.clear()
+        self.follower = Client()
+        self.follower.force_login(self.test_follower)
+        self.author = Client()
+        self.author.force_login(self.test_author)
+
+    def test_follow_on_user(self):
+        """Проверяем, что авторизованный пользователь может подписаться
+        на другого пользователя."""
+        follow_count = Follow.objects.count()
+        self.author.post(
+            reverse(
+                'posts:profile_follow',
+                kwargs={'username': self.test_follower}
+            )
+        )
+        latest_follow = Follow.objects.all().latest('id')
+        self.assertEqual(
+            Follow.objects.count(),
+            follow_count + 1,
+            'Количество подписок не изменилось'
+        )
+        self.assertEqual(
+            latest_follow.user.id,
+            self.test_author.id,
+            'Ошибка в подписчике'
+        )
+        self.assertEqual(
+            latest_follow.author.id,
+            self.test_follower.id,
+            'Ошибка в авторе'
+        )
+
+    def test_unfollow_on_user(self):
+        """Проверяем, что авторизованный пользователь может отписаться
+        от другого пользователя."""
+        Follow.objects.create(
+            user=self.test_author,
+            author=self.test_follower
+        )
+        follow_count = Follow.objects.count()
+        self.author.post(
+            reverse(
+                'posts:profile_unfollow',
+                kwargs={'username': self.test_follower}
+            )
+        )
+        self.assertEqual(
+            Follow.objects.count(),
+            follow_count - 1,
+            'Количество подписок не изменилось'
+        )
+
+    def test_post_on_page_following(self):
+        """Проверяем, что новая запись пользователя появляется в ленте тех,
+        кто на него подписан."""
+        post = Post.objects.create(
+            text='Тестовый пост',
+            author=self.test_author
+        )
+        Follow.objects.create(
+            user=self.test_follower,
+            author=self.test_author
+        )
+        response = self.follower.get(reverse('posts:follow_index'))
+        self.assertIn(
+            post,
+            response.context['page_obj'].object_list,
+            'Пост не появился на странице подписчика'
+        )
+
+    def test_posts_not_on_page_following(self):
+        """Проверяем, что новая запись пользователя не появляется
+        в ленте тех, кто на него не подписан."""
+        post = Post.objects.create(
+            text='Тестовый пост',
+            author=self.test_author
+        )
+        response = self.follower.get(reverse('posts:follow_index'))
+        self.assertNotIn(
+            post,
+            response.context['page_obj'].object_list,
+            'Пост появляется на странице не подписанного пользователя'
+        )

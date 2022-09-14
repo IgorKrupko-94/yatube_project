@@ -3,11 +3,11 @@
 {% cache 20 index_page %}
 {% load thumbnail %}
 {% block title %}
-Последние обновления на сайте
+Посты всех любимых авторов
 {% endblock title %}
 {% block content %}
 <div class="container py-5">
-  <h1>Последние обновления на сайте</h1>
+  <h1>Посты всех любимых авторов</h1>
   {% include 'posts/includes/switcher.html' %}
   {% for post in page_obj %}
   <article>
