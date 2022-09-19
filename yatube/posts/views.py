@@ -7,7 +7,6 @@ from .forms import PostForm, CommentForm
 from .utils import pagination_on_page
 
 
-@cache_page(20)
 def index(request):
     post_list = Post.objects.all()
     page_obj = pagination_on_page(request, post_list)
@@ -30,12 +29,9 @@ def group_posts(request, slug):
 
 def profile(request, username):
     author = get_object_or_404(User, username=username)
-    following = request.user.is_authenticated
-    if following:
-        following = author.following.filter(user=request.user).exists()
-    post_list = (Post.objects.select_related('author', 'group')
-                 .filter(author__username=username)
-                 )
+    following = request.user.is_authenticated and author.following.filter(
+        user=request.user).exists()
+    post_list = author.posts.all()
     page_obj = pagination_on_page(request, post_list)
     context = {
         'page_obj': page_obj,

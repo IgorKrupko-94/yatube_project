@@ -13,6 +13,10 @@ class Group(models.Model):
                             )
     description = models.TextField()
 
+    class Meta:
+        verbose_name = 'Группа'
+        verbose_name_plural = 'Группы'
+
     def __str__(self):
         return self.title
 
@@ -105,6 +109,10 @@ class Follow(models.Model):
             models.CheckConstraint(
                 check=~models.Q(user=models.F('author')),
                 name='user_cannot_follow_yourself'
+            ),
+            models.UniqueConstraint(
+                fields=['user', 'author'],
+                name='unique_following'
             )
         ]
         verbose_name = 'Подписка',
